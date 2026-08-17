@@ -1,0 +1,98 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Prisma 7: connection URLs live in prisma.config.ts (CLI/migrations) and are
+// passed to PrismaClient via a driver adapter at runtime (see src/config/database.js).
+datasource db {
+  provider = "postgresql"
+}
+
+enum AlertStatus {
+  PENDING
+  TRIGGERED
+  FAILED
+  CANCELLED
+}
+
+enum AlertCondition {
+  ABOVE
+  BELOW
+}
+
+enum NotificationChannel {
+  LOG
+  EMAIL
+  SMS
+}
+
+enum NotificationStatus {
+  PENDING
+  PROCESSING
+  SENT
+  FAILED
+}
+
+model Alert {
+  id            String              @id @default(uuid())
+  userId        String
+  userEmail     String
+  currencyPair  String // e.g., "USD_NGN"
+  
+  targetRate    Decimal             @db.Decimal(18, 6) // Ensures financial precision
+  condition     AlertCondition // "ABOVE" or "BELOW"
+  status        AlertStatus         @default(PENDING)
+  phoneNumber   String?
+
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  triggeredAt   DateTime?
+  notifications AlertNotification[]
+  // One-to-one constraint for notification safety
+
+  @@index([userId, status])
+  @@index([currencyPair, status])
+}
+
+model FxRate {
+  id           String   @id @default(uuid())
+  currencyPair String
+  rate         Decimal  @db.Decimal(18, 6)
+  source       String
+  fetchedAt    DateTime @default(now())
+
+  @@index([currencyPair, fetchedAt])
+}
+
+model AlertNotification {
+  id        String              @id @default(uuid())
+  alertId   String
+  channel   NotificationChannel
+  dedupeKey String              @unique
+  status    NotificationStatus  @default(PENDING)
+
+  sentAt       DateTime?
+  provider     String?
+  providerMessageId String?
+  error        String?
+  processingAt DateTime?
+
+  // Retry tracking
+  attemptCount Int  @default(0)
+  nextRetryAt   DateTime?
+  lastErrorAt   DateTime?
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  alert Alert @relation(fields: [alertId], references: [id])
+
+  @@index([alertId])
+  @@index([status, processingAt])
+  @@index([status, nextRetryAt])
+}
