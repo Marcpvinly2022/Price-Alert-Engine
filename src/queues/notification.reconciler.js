@@ -1,5 +1,4 @@
-
-
+// Import database client, notification queue utility, and logger.
 import { prisma } from "../config/database.js";
 import { enqueueNotifications } from "./notification.queue.js";
 import { logger } from "../utils/logger.js";
@@ -7,20 +6,16 @@ import { logger } from "../utils/logger.js";
 // How often to sweep.
 const INTERVAL_MS = Number(process.env.RECONCILER_INTERVAL_MS) || 30_000;
 
-// Only re-enqueue rows OLDER than this. The grace window avoids racing a healthy
-// enqueue that's about to happen milliseconds after commit — we only want rows
-// that have been PENDING "too long", which signals the enqueue never landed.
+// Only re-enqueue rows OLDER than this. The grace window avoids racing a healthy enqueue that's about to happen milliseconds after commit — we only want rows that have been PENDING "too long", which signals the enqueue never landed.
 const GRACE_MS = Number(process.env.RECONCILER_GRACE_MS) || 30_000;
 
 // Cap work per tick so one sweep can't try to load a million rows at once.
 const BATCH = Number(process.env.RECONCILER_BATCH_SIZE) || 1_000;
 
+// Timer instance reference tracking active interval.
 let timer = null;
 
-/**
- * One reconciliation pass. Exported so it can be unit-tested or invoked manually
- * during verification.
- */
+// One reconciliation pass. Exported so it can be unit-tested or invoked manually during verification.
 export const reconcileOnce = async () => {
   const cutoff = new Date(Date.now() - GRACE_MS);
 
@@ -33,8 +28,7 @@ export const reconcileOnce = async () => {
 
   if (orphans.length === 0) return 0;
 
-  // Idempotent thanks to jobId=dedupeKey: any orphan that actually DID reach
-  // Redis is silently ignored here.
+  // Idempotent thanks to jobId=dedupeKey: any orphan that actually DID reach Redis is silently ignored here.
   await enqueueNotifications(orphans);
 
   logger.info(
@@ -42,8 +36,7 @@ export const reconcileOnce = async () => {
     "[RECONCILER] re-enqueued PENDING orphan(s)",
   );
 
-  // Never hide a truncation: if we filled the batch there may be more, which the
-  // next tick will pick up. Say so rather than looking like we covered everything.
+  // Never hide a truncation: if we filled the batch there may be more, which the next tick will pick up. Say so rather than looking like we covered everything.
   if (orphans.length === BATCH) {
     logger.warn(
       { batch: BATCH },
@@ -54,9 +47,7 @@ export const reconcileOnce = async () => {
   return orphans.length;
 };
 
-/**
- * Start the periodic sweep. Idempotent — calling twice won't create two timers.
- */
+// Start the periodic sweep. Idempotent — calling twice won't create two timers.
 export const startReconciler = () => {
   if (timer) return;
 
@@ -67,8 +58,7 @@ export const startReconciler = () => {
     );
   }, INTERVAL_MS);
 
-  // unref() so this timer alone won't keep the process alive — during shutdown
-  // we want the process free to exit once real work is drained.
+  // unref() so this timer alone won't keep the process alive — during shutdown we want the process free to exit once real work is drained.
   if (typeof timer.unref === "function") timer.unref();
 
   logger.info(
@@ -77,9 +67,7 @@ export const startReconciler = () => {
   );
 };
 
-/**
- * Stop the sweep. Called during graceful shutdown.
- */
+// Stop the sweep. Called during graceful shutdown.
 export const stopReconciler = () => {
   if (!timer) return;
   clearInterval(timer);

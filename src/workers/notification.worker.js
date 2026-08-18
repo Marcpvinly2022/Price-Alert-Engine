@@ -1,5 +1,3 @@
-
-
 import { Worker } from "bullmq";
 import { getRedisConnectionOptions } from "../config/redis.js";
 import { NOTIFICATION_QUEUE_NAME } from "../queues/notification.queue.js";

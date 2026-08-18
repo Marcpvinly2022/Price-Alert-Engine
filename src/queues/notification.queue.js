@@ -1,19 +1,17 @@
-
-
 import { Queue } from "bullmq";
 import { getRedisConnectionOptions } from "../config/redis.js";
 import { logger } from "../utils/logger.js";
 
-
+// Define the unique name of the queue channel
 export const NOTIFICATION_QUEUE_NAME = "notifications";
 
-
+// Define the specific identifier for the delivery task type
 const JOB_NAME = "deliver-notification";
 
+// Instantiate the main BullMQ Queue producer wrapper
 export const notificationQueue = new Queue(NOTIFICATION_QUEUE_NAME, {
 
   connection: getRedisConnectionOptions(),
-
 
   defaultJobOptions: {
 
@@ -28,8 +26,7 @@ export const notificationQueue = new Queue(NOTIFICATION_QUEUE_NAME, {
   },
 });
 
-// Surface Redis/queue-level errors instead of letting an unhandled 'error' event
-// crash the process. This is our visibility into "Redis went away".
+// Intercept and log network connection failures safely
 notificationQueue.on("error", (err) => {
   logger.error({ err: err?.message }, "[QUEUE] notification queue error");
 });
@@ -39,6 +36,7 @@ notificationQueue.on("error", (err) => {
  *
  * @param {{ dedupeKey: string, alertId?: string }} item
  */
+// Push a single notification to Redis with a unique dedupe key
 export const enqueueNotification = async ({ dedupeKey, alertId }) =>
   notificationQueue.add(
     JOB_NAME,
@@ -50,6 +48,7 @@ export const enqueueNotification = async ({ dedupeKey, alertId }) =>
 
  * @param {Array<{ dedupeKey: string, alertId?: string }>} items
  */
+// Pipeline multiple notifications to Redis in a single network round-trip
 export const enqueueNotifications = async (items) => {
   if (!items || items.length === 0) return [];
 
@@ -66,6 +65,7 @@ export const enqueueNotifications = async (items) => {
  * Close the producer connection. Called during graceful shutdown AFTER the
  * worker has drained, so no in-flight enqueue is cut off.
  */
+// Disconnect from the Redis server safely during shutdown sequences
 export const closeNotificationQueue = async () => {
   await notificationQueue.close();
 };

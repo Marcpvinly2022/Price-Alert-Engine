@@ -1,5 +1,3 @@
-
-
 import "dotenv/config";
 import IORedis from "ioredis";
 import { logger } from "../utils/logger.js";

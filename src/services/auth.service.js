@@ -59,3 +59,18 @@ export const loginUser = async ({email, password}) => {
 
     return data;
 }
+
+
+// Log out the current user session from Supabase
+export const logoutUser = async () => {
+  const { error } = await supabase.auth.signOut();
+
+  if (error) {
+    const err = new Error(error.message);
+    err.statusCode = 400;
+    err.code = 'AUTH_LOGOUT_FAILED';
+    throw err;
+  }
+
+  return true;
+};

@@ -49,3 +49,18 @@ export const handleLogin = async (req, res, next) => {
     next(err);
   }
 };
+
+
+// Handle outbound logout requests cleanly
+export const handleLogout = async (req, res, next) => {
+  try {
+    await authService.logoutUser();
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      message: 'User logged out successfully',
+    });
+  } catch (err) {
+    next(err);
+  }
+};

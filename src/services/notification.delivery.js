@@ -13,7 +13,7 @@ import { logger } from "../utils/logger.js";
  * @param {string} dedupeKey  e.g. "<alertId>:email:triggered"
  */
 export const deliverNotification = async (dedupeKey) => {
-  // 1. Load the durable notification row — Postgres is the source of truth.
+  // Load the durable notification row — Postgres is the source of truth.
   const notification = await prisma.alertNotification.findUnique({
     where: { dedupeKey },
     select: {
@@ -42,13 +42,13 @@ export const deliverNotification = async (dedupeKey) => {
     };
   }
 
-  // 3. Mark PROCESSING (audit mirror in Postgres). NOTE: this is unconditional,
+  //  Mark PROCESSING (audit mirror in Postgres). NOTE: this is unconditional,
   await prisma.alertNotification.update({
     where: { id: notification.id },
     data: { status: "PROCESSING", processingAt: new Date() },
   });
 
-  // 4. Load the Alert the provider needs (recipient email, pair, target, …).
+  // Load the Alert the provider needs (recipient email, pair, target, …).
   const alert = await prisma.alert.findUnique({
     where: { id: notification.alertId },
     select: {
@@ -70,7 +70,7 @@ export const deliverNotification = async (dedupeKey) => {
   // The provider reads notification.alert.* (same shape the old worker built).
   notification.alert = alert;
 
-  // 5. DELIVER. Throws on provider failure → BullMQ handles the retry.
+  //  DELIVER. Throws on provider failure → BullMQ handles the retry.
   const result = await sendNotification(notification);
 
   // 6. SUCCESS → terminal SENT, with provider metadata for the audit trail.

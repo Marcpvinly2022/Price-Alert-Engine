@@ -2,6 +2,7 @@ import prisma from "../config/database.js";
 import { Prisma } from "@prisma/client";
 import prismaDirect from "../config/database.direct.js";
 
+// Evaluates parameters and saves a unique profile alert configuration to the schema table.
 export const createNewUserAlert = async (userId, userEmail, alertData) => {
   const { currencyPair, targetRate, condition } = alertData;
   const existingAlert = await prisma.alert.findFirst({
@@ -33,6 +34,7 @@ export const createNewUserAlert = async (userId, userEmail, alertData) => {
 };
 
 
+// Returns a subset slice of database entries matching constraints along with pagination metadata.
 export const fetchPaginatedUserAlerts = async (
   userId,
   page = 1,
@@ -67,6 +69,7 @@ export const fetchPaginatedUserAlerts = async (
   };
 };
 
+// Validates profile entry ownership boundaries and completely purges the specific target criteria record.
 export const removeUserAlert = async (id, userId) => {
     const alert = await prisma.alert.findFirst({ where: {id, userId} });
     if(!alert) return null;
@@ -74,5 +77,3 @@ export const removeUserAlert = async (id, userId) => {
     await prisma.alert.delete({ where: { id } });
     return true;
 }
-
-
