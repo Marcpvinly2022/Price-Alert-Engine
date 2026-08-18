@@ -1,11 +1,10 @@
 import { sendLogNotification } from "../providers/log.provider.js";
 import { sendEmailNotification } from "../providers/email.provider.js";
-import { sendSmsNotification } from "../providers/sms.provider.js";
+
 
 const Providers = {
     LOG: sendLogNotification,
     EMAIL: sendEmailNotification,
-    SMS: sendSmsNotification,
 };
 
 export const sendNotification = async (notification) => {

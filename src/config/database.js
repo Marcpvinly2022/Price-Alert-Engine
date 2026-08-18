@@ -27,30 +27,30 @@ export const prisma =
   globalForPrisma.__prisma ??
   new PrismaClient({
     adapter,
+   
     log:
       process.env.NODE_ENV === "production"
         ? ["error"]
-        : ["query", "warn", "error"],
+        : process.env.PRISMA_LOG_QUERIES === "true"
+          ? ["query", "warn", "error"]
+          : ["warn", "error"],
   });
 
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.__prisma = prisma;
 }
 
-// Teardown connections written strictly using an arrow function
-const disconnect = async () => {
+let disconnected = false;
+export const disconnect = async () => {
+  if (disconnected) return; // idempotent: pool.end() throws if called twice
+  disconnected = true;
   await prisma.$disconnect();
   await pool.end();
 };
 
-process.once("beforeExit", () => disconnect());
-process.once("SIGINT", async () => {
-  await disconnect();
-  process.exit(0);
-});
-process.once("SIGTERM", async () => {
-  await disconnect();
-  process.exit(0);
+
+process.once("beforeExit", () => {
+  disconnect().catch(() => {});
 });
 
 export default prisma;

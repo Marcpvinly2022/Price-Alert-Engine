@@ -1,7 +1,6 @@
 import { fetchUsdNgnRate } from "../providers/fx.provider.js";
 import { saveRateSnapshot } from "../services/rates.service.js";
 import { evaluateAlertsForRate } from "../services/trigger.service.js";
-import { runNotificationCycle } from "../services/notification.scheduler.js";
 
 let running = false;
 
@@ -25,19 +24,13 @@ try{
     // Evaluate user alerts
     const triggeredAlertIds = await evaluateAlertsForRate({
         currencyPair: rateData.currencyPair,
-        rate: rateData.rate,
+        rate: rateData.rate.toString(),
     });
 
     console.log(
       `[ALERT] Triggered ${triggeredAlertIds.length} alert(s)`
     );
 
-    // Process email notifications
-
-    const notificationResult = await runNotificationCycle();
-     console.log(
-      `[NOTIFICATION] Processed ${notificationResult.processed} notification(s)`
-    );
 
     console.log("========== CYCLE COMPLETE ==========\n");
 
@@ -45,7 +38,6 @@ try{
         rate: rateData,
         snapshot: snapshot.id,
         triggeredAlerts: triggeredAlertIds,
-        notifications: notificationResult,
     };
 }catch(error){
     console.error(

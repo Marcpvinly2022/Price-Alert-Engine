@@ -1,4 +1,6 @@
 import prisma from "../config/database.js";
+import { enqueueNotifications } from "../queues/notification.queue.js";
+import { logger } from "../utils/logger.js";
 
 export const evaluateAlertsForRate = async ({ currencyPair, rate }) => {
   const currentRate = Number(rate);
@@ -76,6 +78,27 @@ export const evaluateAlertsForRate = async ({ currencyPair, rate }) => {
 
     return claimedIds;
   });
+
+
+  if (claimedAlertIds.length > 0) {
+    try {
+      await enqueueNotifications(
+        claimedAlertIds.map((id) => ({
+          dedupeKey: `${id}:email:triggered`,
+          alertId: id,
+        })),
+      );
+      logger.info(
+        { count: claimedAlertIds.length },
+        "[TRIGGER] enqueued notification job(s)",
+      );
+    } catch (error) {
+      logger.error(
+        { err: error?.message, count: claimedAlertIds.length },
+        "[TRIGGER] enqueue failed; reconciler will recover PENDING rows",
+      );
+    }
+  }
 
   return claimedAlertIds;
 };

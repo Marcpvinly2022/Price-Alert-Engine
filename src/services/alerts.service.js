@@ -42,15 +42,15 @@ export const fetchPaginatedUserAlerts = async (
   const safeLimit = Math.min(Math.max(Number(limit) || 10, 1), 50);
   const skip = (safePage - 1) * safeLimit;
 
-  const [alerts, totalCount] = await prismaDirect.$transaction([
-    prismaDirect.alert.findMany({
+  const [alerts, totalCount] = await prisma.$transaction([
+    prisma.alert.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
       skip,
       take: safeLimit,
     }),
 
-    prismaDirect.alert.count({
+    prisma.alert.count({
       where: { userId },
     }),
   ]);
