@@ -4,7 +4,7 @@ import prismaDirect from "../config/database.direct.js";
 
 // Evaluates parameters and saves a unique profile alert configuration to the schema table.
 export const createNewUserAlert = async (userId, userEmail, alertData) => {
-  const { currencyPair, targetRate, condition } = alertData;
+  const { currencyPair, targetRate, condition, phoneNumber } = alertData;
   const existingAlert = await prisma.alert.findFirst({
     where: {
         userId,
@@ -28,6 +28,7 @@ export const createNewUserAlert = async (userId, userEmail, alertData) => {
         currencyPair,
         targetRate: new Prisma.Decimal(targetRate),
         condition,
+        phoneNumber,
     }
   })
  
@@ -60,11 +61,12 @@ export const fetchPaginatedUserAlerts = async (
   return {
     alerts,
     meta: {
-      id:userId.id,
+      id: userId,
       totalCount,
       page: safePage,
       limit: safeLimit,
       totalPages: Math.ceil(totalCount / safeLimit),
+
     },
   };
 };

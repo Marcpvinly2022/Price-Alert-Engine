@@ -46,8 +46,7 @@ export const handleGetAlerts = async (req, res, next) => {
         return res.status(200).json({
             status: 'SUCCESS',
             meta: result.meta,
-            //data: result.alerts,
-            data: result.data,
+            data: result.alerts,
         });
     }catch(err){
         next(err);

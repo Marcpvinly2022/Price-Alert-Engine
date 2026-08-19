@@ -61,8 +61,9 @@ timer = setInterval(() => {
     }
   });
 }, INTERVAL_MS);
-}
 
+}
+console.log
 // Stop the sweep. Called during graceful shutdown.
 export const stopReconciler = () => {
   if (!timer) return;

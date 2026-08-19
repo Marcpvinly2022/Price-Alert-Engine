@@ -21,6 +21,16 @@ const createAlertSchema = z.object({
       message: 'Condition must be either ABOVE or BELOW',
     }),
   }),
+
+  
+  phoneNumber: z
+    .string()
+    .trim()
+    .regex(/^\+?[1-9]\d{7,14}$/, {
+      message:
+        'Phone number must be in international format, e.g. +2348012345678',
+    })
+    .optional(),
 });
 
 export const validateCreateAlert = (req, res, next) => {
