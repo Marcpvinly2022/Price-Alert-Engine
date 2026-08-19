@@ -50,22 +50,18 @@ export const reconcileOnce = async () => {
 // Start the periodic sweep. Idempotent — calling twice won't create two timers.
 export const startReconciler = () => {
   if (timer) return;
-
-  timer = setInterval(() => {
-    // Never let a failed sweep crash the process; log and try again next tick.
-    reconcileOnce().catch((err) =>
-      logger.error({ err: err?.message }, "[RECONCILER] tick failed"),
-    );
-  }, INTERVAL_MS);
-
-  // unref() so this timer alone won't keep the process alive — during shutdown we want the process free to exit once real work is drained.
-  if (typeof timer.unref === "function") timer.unref();
-
-  logger.info(
-    { intervalMs: INTERVAL_MS, graceMs: GRACE_MS, batch: BATCH },
-    "[RECONCILER] started",
-  );
-};
+  // Inside your startReconciler function:
+timer = setInterval(() => {
+  reconcileOnce().catch((err) => {
+    // 🛡️ Pro Tip: Check if the error is a known connection error code (like P1001)
+    if (err?.message?.includes('Can\'t reach database server') || err?.code === 'P1001') {
+      logger.warn("[RECONCILER] Tick bypassed: Supabase cloud database server is currently unreachable.");
+    } else {
+      logger.error({ err: err?.message }, "[RECONCILER] tick failed");
+    }
+  });
+}, INTERVAL_MS);
+}
 
 // Stop the sweep. Called during graceful shutdown.
 export const stopReconciler = () => {

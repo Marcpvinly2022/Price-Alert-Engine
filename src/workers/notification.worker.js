@@ -111,7 +111,7 @@ export const createNotificationWorker = () => {
   // Worker-level (usually connection) errors. Logged, not fatal — the
   // retryStrategy in redis.js keeps trying to reconnect underneath.
   worker.on("error", (err) => {
-    logger.error({ err: err?.message }, "[WORKER] worker error");
+    logger.debug({ err: err?.message }, "[WORKER] worker error");
   });
 
   logger.info(

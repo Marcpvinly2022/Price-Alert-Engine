@@ -28,7 +28,7 @@ export const notificationQueue = new Queue(NOTIFICATION_QUEUE_NAME, {
 
 // Intercept and log network connection failures safely
 notificationQueue.on("error", (err) => {
-  logger.error({ err: err?.message }, "[QUEUE] notification queue error");
+  logger.debug({ err: err?.message }, "[QUEUE] notification queue error");
 });
 
 /**

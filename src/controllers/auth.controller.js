@@ -29,11 +29,19 @@ export const handleLogin = async (req, res, next) => {
   try {
     const session = await authService.loginUser(req.validatedBody);
 
+    // 1. Send the long-lived refresh token in a highly secure HttpOnly cookie
+    res.cookie('refresh_token', session.session.refresh_token, {
+      httpOnly: true,     // Prevents frontend JavaScript/XSS from reading it
+      secure: true,       // Ensures it is only sent over HTTPS
+      sameSite: 'strict', // Prevents CSRF attacks
+      maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days expiration match
+    });
+
+    // 2. Return ONLY the short-lived access token and user metadata in the JSON body
     return res.status(200).json({
       status: "SUCCESS",
       data: {
         accessToken: session.session.access_token,
-        refreshToken: session.session.refresh_token,
         expiresAt: session.session.expires_at,
         user: {
           id: session.user.id,

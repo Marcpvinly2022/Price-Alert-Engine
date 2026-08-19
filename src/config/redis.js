@@ -57,6 +57,10 @@ export const assertRedisReachable = async () => {
     retryStrategy: () => null,
     lazyConnect: true,
   });
+  probe.on(
+    "error", (err) => {
+    logger.debug(`[REDIS] Probe connection background event: ${err.message}`);
+    });
 
   try {
     await probe.connect();
@@ -64,13 +68,16 @@ export const assertRedisReachable = async () => {
     logger.info(
       `[REDIS] reachable at ${parsed.hostname}:${parsed.port || 6379}`,
     );
+    return true;
   } catch (error) {
-    throw new Error(
+    logger.error(
       `[REDIS] cannot reach Redis at ${parsed.hostname}:${parsed.port || 6379}. ` +
         `Check: (1) REDIS_URL points at the Ubuntu VM IP (not 127.0.0.1), ` +
         `(2) redis.conf 'bind 0.0.0.0' + a password, (3) 'sudo ufw allow 6379'. ` +
         `Underlying error: ${error.message}`,
     );
+
+    return false;
   } finally {
     // Best-effort teardown of the probe; ignore errors on an already-dead socket.
     probe.disconnect();

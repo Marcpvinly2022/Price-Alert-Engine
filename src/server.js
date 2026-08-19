@@ -11,33 +11,63 @@ import {
 } from "./queues/notification.reconciler.js";
 import { closeNotificationQueue } from "./queues/notification.queue.js";
 
+// ── 🛡️ PRODUCTION GLOBAL SAFETY NETS ───────────────────────────────────────
+// Intercept asynchronous background promise rejections across your application
+
+process.on("unhandledRejection", (reason) => {
+  logger.error({
+    msg: "[PROCESS EMERGENCY] Intercepted an unhandled background promise rejection. Keeping engine online.",
+    reason: reason instanceof Error ? reason.stack : reason
+  });
+});
+
+
+// Intercept synchronous execution branch failures before they trigger an runtime crash
+process.on("uncaughtException", (error) => {
+  logger.error({
+    msg: "[PROCESS EMERGENCY] Intercepted an uncaught application exception thread. Keeping engine online.",
+    err: error.stack
+  })
+})
+
+
 const PRICE_CHECK_INTERVAL =
   Number(process.env.PRICE_CHECK_INTERVAL_MS) || 30 * 60 * 1000;
 
-// ── Optionally run the delivery Worker IN THIS PROCESS ──────────────────────
-// Dev convenience: with RUN_WORKER_IN_PROCESS=true, a single `npm run dev` runs
-// the whole system — API + price cycle + worker + reconciler — with no Docker
-// and no second terminal. In PRODUCTION you leave this false and run the worker
-// as its own process via `npm run worker` (as many copies as you need), so the
-// API and the delivery fleet scale independently. Same code, two deploy shapes.
 const RUN_WORKER_IN_PROCESS = process.env.RUN_WORKER_IN_PROCESS === "true";
 
 let worker = null;
-if (RUN_WORKER_IN_PROCESS) {
-  // You explicitly asked to run the worker here, so a missing Redis is a real
-  // error you want surfaced immediately — fail fast with a clear message.
-  await assertRedisReachable();
-  worker = createNotificationWorker();
-  startReconciler();
-  logger.info(
-    "[SERVER] delivery worker + reconciler running in-process (RUN_WORKER_IN_PROCESS=true)",
-  );
+let workerStarted = false;
+
+
+// 🔄 Automated background health checker and worker initializer
+async function initializeQueueService() {
+  if(!RUN_WORKER_IN_PROCESS || workerStarted) return;
+
+  // Run the probe connection check
+  const isRedisUp = await assertRedisReachable();
+
+  if(isRedisUp){
+    logger.info("[REDIS] Wire connection established! Initializing background worker engines...");
+    worker = createNotificationWorker();
+    startReconciler();
+    workerStarted = true;
+    logger.info("[SERVER] delivery worker + reconciler running in-process (RUN_WORKER_IN_PROCESS=true)");
+  } else {
+    logger.warn("[REDIS] Target offline. Fallback state active. Retrying engine auto-initialization in 10 seconds...");
+    // ⏱️ Schedule a retry check in 10 seconds without blocking the rest of the application
+    setTimeout(initializeQueueService, 10000); 
+  }
 }
 
-// Run one cycle immediately at boot, then every interval. The cycle now only
-// fetches the rate, snapshots it, evaluates alerts, and ENQUEUES delivery jobs —
-// it does not send email itself anymore.
-await runPriceAlertCycle();
+initializeQueueService();
+
+try {
+  logger.info("[SERVER] Initializing synchronous boot-time validation engine cycle...");
+  await runPriceAlertCycle();
+} catch (bootError) {
+  logger.error({ err: bootError.message }, "[SERVER] Boot check cycle failed safely. Proceeding to network listener loop.");
+}
 
 const priceCycleTimer = setInterval(() => {
   runPriceAlertCycle().catch((error) => {
