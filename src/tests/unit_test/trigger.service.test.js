@@ -1,18 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// ─────────────────────────────────────────────────────────────────────────────
 // WHY WE MOCK BEFORE IMPORTING THE MODULE UNDER TEST
-//
-// evaluateAlertsForRate() imports three collaborators at module load:
-//   - ../config/database.js       → opens a real pg Pool and DEMANDS DATABASE_URL
-//   - ../queues/notification.queue.js → opens a real Redis/BullMQ connection
-//   - ../utils/logger.js          → pino logger (noisy in test output)
-//
-// vi.mock() is hoisted above the imports, so when we `import` the SUT below the
-// REAL versions of these modules never execute. That means these tests need no
-// database, no Redis, and no env vars — they exercise the pure DECISION LOGIC in
-// total isolation, which is exactly what we want from a fast unit test.
-// ─────────────────────────────────────────────────────────────────────────────
 
 vi.mock("../../config/database.js", () => ({
   // trigger.service.js uses a DEFAULT import (`import prisma from ...`), so the
@@ -20,8 +8,6 @@ vi.mock("../../config/database.js", () => ({
   default: {
     alert: { findMany: vi.fn() },
     // $transaction is the INTERACTIVE (callback) form. Our beforeEach wires it
-    // to invoke the callback with a fake `tx`, so we can assert the writes that
-    // happen inside the transaction.
     $transaction: vi.fn(),
   },
 }));
@@ -82,8 +68,6 @@ describe("evaluateAlertsForRate", () => {
           currencyPair: "USD_NGN",
           status: "PENDING",
           // ABOVE fires when the target is at/below the live rate;
-          // BELOW fires when the target is at/above it. Numbers, not strings —
-          // proves the Number(rate) coercion happened.
           OR: [
             { condition: "ABOVE", targetRate: { lte: 1600 } },
             { condition: "BELOW", targetRate: { gte: 1600 } },
@@ -128,8 +112,6 @@ describe("evaluateAlertsForRate", () => {
 
   it("no-ops safely when another worker already claimed the alerts (race)", async () => {
     // findMany saw a candidate, but by the time we UPDATE ... WHERE status =
-    // 'PENDING', a competing worker had already flipped it. updateManyAndReturn
-    // returns 0 rows → we must NOT create notifications or enqueue.
     prisma.alert.findMany.mockResolvedValue([{ id: "a1" }]);
     tx.alert.updateManyAndReturn.mockResolvedValue([]);
 
@@ -145,8 +127,7 @@ describe("evaluateAlertsForRate", () => {
 
   it("does NOT throw if enqueue fails — commit already happened, reconciler recovers", async () => {
     // THE resilience guarantee of the outbox: the DB commit is the source of
-    // truth. If Redis is down when we try to enqueue, we log and swallow so the
-    // cycle keeps running; the reconciler will re-enqueue the PENDING rows.
+ 
     prisma.alert.findMany.mockResolvedValue([{ id: "a1" }]);
     tx.alert.updateManyAndReturn.mockResolvedValue([{ id: "a1" }]);
     tx.alertNotification.createMany.mockResolvedValue({ count: 1 });

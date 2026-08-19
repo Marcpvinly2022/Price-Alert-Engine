@@ -1,21 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// WHY EACH TEST RELOADS THE MODULE (vi.resetModules + dynamic import)
-//
-// fx.provider.js builds ONE CircuitBreaker at import time and keeps it for the
-// life of the process. opossum trips the breaker OPEN once the error rate crosses
-// errorThresholdPercentage (50%). A single failing request is a 100% error rate,
-// so a failure test could leave the breaker OPEN — and a shared breaker would then
-// short-circuit the NEXT test straight to the fallback WITHOUT calling fetch,
-// making a "live success" test fail for the wrong reason.
-//
-// Reloading the module per test gives every test its own pristine breaker, so the
-// tests are order-independent and each asserts exactly one behavior.
-//
-// NOTE: fetch is fully mocked here — these tests make ZERO real network calls, so
-// they never touch (or exhaust) the ExchangeRate-API quota.
-// ─────────────────────────────────────────────────────────────────────────────
 
 async function loadProvider() {
   vi.resetModules(); // drop the cached module (and its breaker)
@@ -36,9 +20,7 @@ function mockFetchReject(error) {
 
 describe("fetchUsdNgnRate (FX provider + circuit breaker)", () => {
   beforeEach(() => {
-    // A present key lets the live path run through to fetch(). We set it BEFORE
-    // import; `import 'dotenv/config'` won't override an already-set var, so the
-    // real .env can't leak its real key into the test.
+   
     vi.stubEnv("EXCHANGERATE_API_KEY", "test-key-123");
 
     // The provider logs to console on every call and on fallback — silence it so
@@ -90,8 +72,7 @@ describe("fetchUsdNgnRate (FX provider + circuit breaker)", () => {
   });
 
   it("falls back when the API returns a logical error payload (result !== 'success')", async () => {
-    // HTTP 200 but the body says failure (e.g. invalid key). The provider treats
-    // this as a failure and the breaker routes to the fallback.
+   
     mockFetchResolve({ result: "error", "error-type": "invalid-key" });
 
     const { fetchUsdNgnRate } = await loadProvider();

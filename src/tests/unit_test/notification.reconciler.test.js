@@ -1,11 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // The reconciler talks to Postgres (named `prisma` export), the BullMQ queue, and
-// the logger. We stub all three so the sweep does no real DB/Redis work:
-//   - prisma: we drive alertNotification.findMany per test
-//   - enqueueNotifications: observed (mocking it also avoids constructing the real
-//     BullMQ Queue, which would need a Redis connection at import time)
-//   - logger: silenced, and lets us assert the truncation warning
+
 vi.mock("../../config/database.js", () => ({
   prisma: { alertNotification: { findMany: vi.fn() } },
 }));
@@ -19,9 +15,6 @@ import { enqueueNotifications } from "../../queues/notification.queue.js";
 import { logger } from "../../utils/logger.js";
 
 // BATCH / GRACE / INTERVAL are read from env AT MODULE LOAD. To hit the batch-cap
-// branch without fabricating 1000 rows, we stub a tiny batch and re-import the
-// module fresh per test (resetModules drops the ESM cache; the vi.mock stubs above
-// persist across the reset, so the fresh copy still sees the same mock fns).
 async function loadReconciler() {
   vi.resetModules();
   return import("../../queues/notification.reconciler.js");
@@ -81,7 +74,6 @@ describe("notification.reconciler", () => {
 
     it("warns about truncation when the batch cap is hit (more may remain)", async () => {
       // Exactly BATCH (2) rows → the sweep is full, so there may be more to do.
-      // The reconciler must SAY SO rather than look like it covered everything.
       const full = [orphan("a1"), orphan("a2")];
       prisma.alertNotification.findMany.mockResolvedValue(full);
       const { reconcileOnce } = await loadReconciler();

@@ -1,15 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// deliverNotification wires together the REAL prisma (named export), the channel
-// sender, and the logger. We stub all three so this test touches no DB, no Redis,
-// and no email provider:
-//   - prisma: we drive alertNotification.findUnique/update + alert.findUnique per test
-//   - sendNotification: stood in for here (its own routing is covered separately)
-//   - logger: silenced, and lets us assert the "no row" warning
+
 vi.mock("../../config/database.js", () => ({
   // IMPORTANT: notification.delivery.js imports { prisma } (a NAMED export),
-  // unlike alerts.service.js which imports the default — so the mock only needs
-  // to expose `prisma`.
+  
   prisma: {
     alertNotification: { findUnique: vi.fn(), update: vi.fn() },
     alert: { findUnique: vi.fn() },

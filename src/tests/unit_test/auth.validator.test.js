@@ -1,10 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Pure Zod middleware — no DB, no network — so we drive it with a fake req/res/next
-// and mock nothing. Two behaviours worth pinning beyond the field rules:
-//   1. validate() is HIGHER-ORDER: validate(schema) returns the middleware.
-//   2. The schema wraps input under `body`, but the middleware UNWRAPS it, so
-//      req.validatedBody is the flat object (parsed.body), not { body: ... }.
+
 import { registerSchema, loginSchema, validate } from "../../validators/auth.validator.js";
 
 function makeRes() {

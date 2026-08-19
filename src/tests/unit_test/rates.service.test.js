@@ -1,7 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// rates.service is a thin Prisma layer. Mock the pooled client (NAMED `prisma`
-// export — same as notification.delivery, unlike alerts.service's default import).
 // We deliberately do NOT mock @prisma/client so the real Prisma.Decimal runs.
 vi.mock("../../config/database.js", () => ({
   prisma: { fxRate: { create: vi.fn(), findFirst: vi.fn() } },
